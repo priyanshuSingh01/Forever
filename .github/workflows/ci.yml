@@ -1,0 +1,91 @@
+name: CI Pipeline
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Login to DockerHub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
+      
+      - name: Run backend tests
+        run: |
+          cd backend
+          npm install
+          NODE_ENV=test \
+          STRIPE_SECRET_KEY=dummy_key \
+          MONGODB_URI=dummy \
+          JWT_SECRET=dummy \
+          npm test
+      
+      - name: Run frontend tests
+        run: |
+          cd frontend
+          npm install
+          npm test
+      
+      - name: Build frontend image
+        run: |
+          docker build \
+            --build-arg VITE_BACKEND_URL=${{ secrets.VITE_BACKEND_URL }} \
+            -t shakshi05/frontend:v1 ./frontend
+
+      - name: Push frontend image
+        run: docker push shakshi05/frontend:v1
+
+      
+      - name: Build backend image
+        run: docker build -t shakshi05/backend:v1 ./backend
+
+      - name: Push backend image
+        run: docker push shakshi05/backend:v1
+
+     
+      - name: Build admin image
+        run: |
+          docker build \
+            --build-arg VITE_BACKEND_URL=${{ secrets.VITE_BACKEND_URL }} \
+            -t shakshi05/admin:v1 ./admin
+
+      - name: Push admin image
+        run: docker push shakshi05/admin:v1
+
+      - name: Scan backend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: shakshi05/backend:v1
+
+      - name: Scan frontend image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: shakshi05/frontend:v1
+
+      - name: Scan admin image with Trivy
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: shakshi05/admin:v1
+
+   #   - name: Deploy to EC2
+   #    uses: appleboy/ssh-action@v0.1.6
+   #     with:
+   #       host: ${{ secrets.EC2_HOST }}
+   #       username: ${{ secrets.EC2_USER }}
+   #       key: ${{ secrets.EC2_SSH_KEY }}
+   #       script: |
+   #         cd ShakshiKumariMurya_CS-2341847_IILM-GN-Major-Project-
+   #         git pull
+   #         kubectl apply -f k8s/
+   #         kubectl rollout restart deployment frontend
+   #         kubectl rollout restart deployment backend
+   #         kubectl rollout restart deployment admin

@@ -1,0 +1,48 @@
+import dns from 'dns';
+dns.setDefaultResultOrder('ipv4first');
+dns.setServers(['8.8.8.8', '8.8.4.4']);
+import express from "express";
+import cors from "cors";
+import "dotenv/config";
+import connectDB from "./configs/db.js";
+import connectCloudinary from "./configs/cloudinary.js";
+import userRouter from "./routes/userRoute.js";
+import productRouter from "./routes/productRoute.js";
+import cartRouter from "./routes/cartRoute.js";
+import orderRouter from "./routes/orderRoute.js";
+import dotenv from "dotenv";
+dotenv.config();
+// App Config
+const app = express();
+const port = process.env.PORT || 3000;
+console.log("URI:", process.env.MONGODB_URI);
+// Connect DB
+if (process.env.NODE_ENV !== "test") {
+  connectDB();
+}
+
+
+// Connect Cloudinary
+connectCloudinary();
+
+// Middlewares
+app.use(express.json());
+app.use(cors());
+
+// Api Endpoints
+app.use("/api/user", userRouter);
+app.use("/api/product", productRouter);
+app.use("/api/cart", cartRouter);
+app.use("/api/order", orderRouter);
+
+app.get("/", (req, res) => {
+  res.send("API WORKING");
+});
+
+if (process.env.NODE_ENV !== "test") {
+  
+app.listen(port, "0.0.0.0", () => {
+  console.log(`Server started at port ${port}`);
+});
+}
+export default app;
